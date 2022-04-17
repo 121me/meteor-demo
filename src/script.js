@@ -1,92 +1,104 @@
-import './style.css'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import * as THREE from 'three';
+import './style.css';
 
-/**
- * Base
- */
-// Canvas
-const canvas = document.querySelector('canvas.webgl')
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/examples/jsm/Loaders/RGBELoader.js';
 
-// Scene
-const scene = new THREE.Scene()
+const perspectiveDistance = 10;
+let camera, scene, renderer;
+let meteor;
 
-/**
- * Sizes
- */
-const sizes = {
-    width: window.innerWidth,
-    height: window.innerHeight
+let pointLight;
+
+init();
+
+function init() {
+    // find the element id 'container'
+    const container = document.getElementById('container');
+
+    renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
+    renderer.setPixelRatio( window.devicePixelRatio );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ReinhardToneMapping;
+    renderer.toneMappingExposure = 3;
+
+    // set renderer.domElement.style.background color to gradient
+    // the background is a gradient from the top left to the bottom right of the screen
+    // the gradient is a linear gradient from the top left to the bottom right
+    // the top left color is rgb(175,180,210)
+    // the bottom right color is rgb(165,155,165)
+
+    renderer.domElement.style.background = 'linear-gradient(to bottom right, rgb(175,180,210), rgb(165,155,165))';
+    container.appendChild( renderer.domElement );
+
+    scene = new THREE.Scene();
+
+    scene.add( new THREE.DirectionalLight( 0xffffff, 1 ) );
+
+    {
+        pointLight = new THREE.PointLight( 0x0000ff, 1 );
+        scene.add( pointLight );
+    }
+
+    {
+        const fov = 45;
+        const aspect = window.innerWidth / window.innerHeight;
+        const near = 0.01;
+        const far = 2000;
+        camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
+    }
+
+    camera.position.set( 0, 0, perspectiveDistance );
+
+    new GLTFLoader().load( './assets/scene.gltf', function ( gltf ) {
+
+        meteor = gltf.scene;
+
+        meteor.scale.set( 0.1, 0.1, 0.1 );
+
+        scene.add( meteor );
+
+        new RGBELoader().load( './assets/royal_esplanade.hdr', function ( hdr ) {
+
+            hdr.mapping = THREE.EquirectangularReflectionMapping;
+
+            scene.environment = hdr;
+
+            render();
+
+        } );
+
+    } );
+
+    window.addEventListener( 'resize', onWindowResize );
+
 }
 
-window.addEventListener('resize', () =>
-{
-    // Update sizes
-    sizes.width = window.innerWidth
-    sizes.height = window.innerHeight
+function onWindowResize() {
 
-    // Update camera
-    camera.aspect = sizes.width / sizes.height
-    camera.updateProjectionMatrix()
+    camera.aspect = window.innerWidth / window.innerHeight;
 
-    // Update renderer
-    renderer.setSize(sizes.width, sizes.height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-})
+    camera.updateProjectionMatrix();
 
-/**
- * Camera
- */
-// Base camera
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.x = 1
-camera.position.y = 1
-camera.position.z = 1
-scene.add(camera)
+    renderer.setSize( window.innerWidth, window.innerHeight );
 
-// Controls
-const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = true
-
-/**
- * Cube
- */
-const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 })
-)
-scene.add(cube)
-
-/**
- * Renderer
- */
-const renderer = new THREE.WebGLRenderer({
-    canvas: canvas,
-    antialias: true,
-})
-renderer.setSize(sizes.width, sizes.height)
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-
-/**
- * Animate
- */
-const clock = new THREE.Clock()
-let lastElapsedTime = 0
-
-const tick = () =>
-{
-    const elapsedTime = clock.getElapsedTime()
-    const deltaTime = elapsedTime - lastElapsedTime
-    lastElapsedTime = elapsedTime
-
-    // Update controls
-    controls.update()
-
-    // Render
-    renderer.render(scene, camera)
-
-    // Call tick again on the next frame
-    window.requestAnimationFrame(tick)
 }
 
-tick()
+function render() {
+
+    const time = Date.now() * 0.0005;
+
+    pointLight.position.x = Math.sin( time * 0.9 ) * 3;
+    pointLight.position.y = Math.cos( time * 0.6 ) * 4;
+    pointLight.position.z = Math.cos( time * 0.3 ) * 3;
+
+    meteor.rotation.x += 0.001;
+    meteor.rotation.y += 0.002;
+    meteor.rotation.z += 0.003;
+
+    requestAnimationFrame( render );
+    renderer.render( scene, camera );
+
+}

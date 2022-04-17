@@ -59,14 +59,14 @@ module.exports = {
 
             // Images
             {
-                test: /\.(jpg|png|gif|svg|jpeg)$/,
+                test: /\.(jpg|png|gif|svg|jpeg|hdr)$/,
                 use:
                 [
                     {
                         loader: 'file-loader',
                         options:
                         {
-                            outputPath: 'assets/images/',
+                            outputPath: 'assets/',
                             sourceMap: true
                         }
                     }
@@ -81,7 +81,7 @@ module.exports = {
                             loader: 'file-loader',
                             options:
                                 {
-                                    outputPath: 'assets/models/',
+                                    outputPath: 'assets/',
                                     sourceMap: true
                                 }
                         }
@@ -97,7 +97,7 @@ module.exports = {
                         loader: 'file-loader',
                         options:
                         {
-                            outputPath: 'assets/fonts/',
+                            outputPath: 'assets/',
                             sourceMap: true
                         }
                     }
