@@ -1,44 +1,59 @@
 import * as THREE from 'three';
 import './style.css';
 
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { RGBELoader } from 'three/examples/jsm/Loaders/RGBELoader.js';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {RGBELoader} from 'three/examples/jsm/Loaders/RGBELoader.js';
+
+import hdr_file from '../static/assets/royal_esplanade.hdr';
+import gltf_file from '../static/assets/scene.gltf';
+
+import {TWEEN} from 'three/examples/jsm/libs/tween.module.min.js';
+import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 
 const perspectiveDistance = 10;
-let camera, scene, renderer;
+const root = new THREE.Object3D();
+
+let camera, scene, renderer, controls;
 let meteor;
 
-let pointLight;
+let INTERSECTED = undefined;
+let SPINNING = undefined;
+
+const raycaster = new THREE.Raycaster();
+
+// let pointLight;
 
 init();
 
 function init() {
-    // find the element id 'container'
     const container = document.getElementById('container');
 
-    renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ReinhardToneMapping;
     renderer.toneMappingExposure = 3;
 
-    // set renderer.domElement.style.background color to gradient
-    // the background is a gradient from the top left to the bottom right of the screen
-    // the gradient is a linear gradient from the top left to the bottom right
-    // the top left color is rgb(175,180,210)
-    // the bottom right color is rgb(165,155,165)
-
     renderer.domElement.style.background = 'linear-gradient(to bottom right, rgb(175,180,210), rgb(165,155,165))';
-    container.appendChild( renderer.domElement );
+    container.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
 
-    scene.add( new THREE.DirectionalLight( 0xffffff, 1 ) );
+    {
+        const dirLight =  new THREE.DirectionalLight(0x00ffff, 4);
+        dirLight.position.set(0, -2, 3);
+
+        dirLight.target = root;
+
+        scene.add(dirLight);
+    }
 
     {
-        pointLight = new THREE.PointLight( 0x0000ff, 1 );
+        const pointLight = new THREE.PointLight(0x0000ff, 5);
+        pointLight.position.set(0, 0, 3);
+
         scene.add( pointLight );
     }
 
@@ -47,20 +62,43 @@ function init() {
         const aspect = window.innerWidth / window.innerHeight;
         const near = 0.01;
         const far = 2000;
-        camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
+        camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     }
 
-    camera.position.set( 0, 0, perspectiveDistance );
+    camera.position.set(0, 0, perspectiveDistance);
 
-    new GLTFLoader().load( './assets/scene.gltf', function ( gltf ) {
+    {
+        controls = new OrbitControls(camera, renderer.domElement);
+
+        controls.enableZoom = false;
+        controls.enablePan = false;
+        controls.screenSpacePanning = false;
+
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+
+        controls.maxAzimuthAngle = Math.PI / 4;
+        controls.minAzimuthAngle = -Math.PI / 4;
+
+        controls.maxPolarAngle = 2 * Math.PI / 3;
+        controls.minPolarAngle = Math.PI / 3;
+    }
+
+    controls.update();
+
+    new GLTFLoader().load(gltf_file, function (gltf) {
 
         meteor = gltf.scene;
 
-        meteor.scale.set( 0.1, 0.1, 0.1 );
+        meteor.scale.set(0.1, 0.1, 0.1);
 
-        scene.add( meteor );
+        // meteor.rotation.y = 2 * Math.PI / 3;
 
-        new RGBELoader().load( './assets/royal_esplanade.hdr', function ( hdr ) {
+        root.add(meteor);
+
+        scene.add(root);
+
+        new RGBELoader().load(hdr_file, function (hdr) {
 
             hdr.mapping = THREE.EquirectangularReflectionMapping;
 
@@ -68,12 +106,43 @@ function init() {
 
             render();
 
-        } );
+        });
+    });
 
-    } );
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('resize', onWindowResize);
 
-    window.addEventListener( 'resize', onWindowResize );
+}
 
+function onMouseMove() {
+    console.log(INTERSECTED);
+
+    // change the rotation of the meteor object based on mouse movement
+    // the meteor object should look at the mouse position
+
+    // get the mouse position
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    {
+        // get the vector from the camera to the mouse position
+        const vector = new THREE.Vector3(mouseX, mouseY, 5);
+
+        // set the rotation of the meteor object to look at the mouse position
+        root.lookAt(vector);
+    }
+
+    {
+        // rotate the meteor object around the y axis if the mouse is on the object
+        // raycast from the mouse position to the object
+        raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+        // get the intersected object
+        const intersects = raycaster.intersectObject(meteor, true);
+
+        // if the mouse is on the object
+        INTERSECTED = intersects.length > 0;
+    }
 }
 
 function onWindowResize() {
@@ -82,7 +151,7 @@ function onWindowResize() {
 
     camera.updateProjectionMatrix();
 
-    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
 }
 
@@ -90,15 +159,37 @@ function render() {
 
     const time = Date.now() * 0.0005;
 
-    pointLight.position.x = Math.sin( time * 0.9 ) * 3;
-    pointLight.position.y = Math.cos( time * 0.6 ) * 4;
-    pointLight.position.z = Math.cos( time * 0.3 ) * 3;
+    root.position.y = Math.cos(time) * 0.2;
 
-    meteor.rotation.x += 0.001;
-    meteor.rotation.y += 0.002;
-    meteor.rotation.z += 0.003;
+    requestAnimationFrame(render);
+    renderer.render(scene, camera);
 
-    requestAnimationFrame( render );
-    renderer.render( scene, camera );
+    controls.update();
+
+    if (INTERSECTED) {
+        if (SPINNING) {
+            // do nothing
+        } else {
+            new TWEEN.Tween(meteor.rotation).to({
+                //y: 5 * Math.PI / 3
+                y: Math.PI * 2
+            }, 4000)
+                .easing(TWEEN.Easing.Elastic.Out).start();
+            SPINNING = true;
+        }
+    } else {
+        if (SPINNING) {
+            new TWEEN.Tween(meteor.rotation).to({
+                //y: 2 * Math.PI / 3
+                y: 0
+            }, 4000)
+                .easing(TWEEN.Easing.Elastic.Out).start();
+            SPINNING = false;
+        } else {
+            // do nothing
+        }
+    }
+
+    TWEEN.update()
 
 }
