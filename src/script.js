@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import './style.css';
 
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
-import {RGBELoader} from 'three/examples/jsm/Loaders/RGBELoader.js';
+import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js';
 
 import hdr_file from '../static/assets/royal_esplanade.hdr';
 import gltf_file from '../static/assets/scene.gltf';
@@ -34,7 +34,7 @@ function init() {
 
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ReinhardToneMapping;
-    renderer.toneMappingExposure = 3;
+    renderer.toneMappingExposure = 2;
 
     renderer.domElement.style.background = 'linear-gradient(to bottom right, rgb(175,180,210), rgb(165,155,165))';
     container.appendChild(renderer.domElement);
@@ -111,6 +111,8 @@ function init() {
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('resize', onWindowResize);
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mouseup', onMouseUp);
 
 }
 
@@ -143,6 +145,27 @@ function onMouseMove() {
         // if the mouse is on the object
         INTERSECTED = intersects.length > 0;
     }
+}
+
+// Turn the slight orbit controls into a more responsive one (faster dragging and limited movement)
+function onMouseDown() {
+    console.log("mousedown");
+
+    controls.maxAzimuthAngle = Math.PI / 2;
+    controls.minAzimuthAngle = -Math.PI / 2;
+
+    controls.maxPolarAngle = 4 * Math.PI / 3;
+    controls.minPolarAngle = Math.PI / 3;
+}
+
+function onMouseUp() {
+    console.log("mouseup");
+
+    controls.maxAzimuthAngle = Math.PI / 4;
+    controls.minAzimuthAngle = -Math.PI / 4;
+
+    controls.maxPolarAngle = 2 * Math.PI / 3;
+    controls.minPolarAngle = Math.PI / 3;
 }
 
 function onWindowResize() {
